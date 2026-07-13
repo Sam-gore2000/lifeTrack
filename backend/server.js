@@ -16,8 +16,25 @@ dotenv.config();
 const app = express();
 
 // --- middleware ---
-const allowedOrigins = (process.env.CLIENT_ORIGIN || "https://life-track-mu.vercel.app/").split(",");
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+const allowedOrigins = (
+  process.env.CLIENT_ORIGIN || "http://localhost:5173"
+).split(",");
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests without an Origin header (e.g. Postman, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json({ limit: "1mb" }));
 
 // --- health check ---
