@@ -16,7 +16,7 @@ dotenv.config();
 const app = express();
 
 // --- middleware ---
-const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",");
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "https://life-track-mu.vercel.app/").split(",");
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 
