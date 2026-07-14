@@ -1,26 +1,22 @@
-# LifeOS — Frontend
+# LifeOS — Personal Performance Dashboard
 
-The LifeOS UI: dashboard, goals with Done/Pending tracking, a life-score ring,
-a real consistency heatmap, analytics, a calendar with day reports, journal,
-and achievements. Built with React, Vite, Tailwind CSS, Recharts, and
-lucide-react.
+A premium, AI-styled personal performance dashboard prototype: goals, focus timers,
+a life-score ring, a GitHub-style consistency heatmap, analytics, journal, and
+achievements. Built with React, Vite, Tailwind CSS, Recharts, and lucide-react.
 
-This app calls a real backend (see `../backend`) for everything — auth,
-goals, progress, XP, streaks, life score, journal, and achievements. There is
-no mock/local data left in this build.
+This is a frontend-only prototype with mock/local state — there is no backend or
+database wired up yet (see "Next steps" below).
 
 ## Run locally
 
-Requires Node.js 18+ and the backend running (see `../backend/README.md`).
+Requires Node.js 18+.
 
 ```bash
 npm install
-cp .env.example .env   # VITE_API_URL should point at your backend, e.g. http://localhost:5000/api
 npm run dev
 ```
 
-Then open the URL Vite prints (usually http://localhost:5173). Sign up for
-an account to get started — there's no seeded demo user.
+Then open the URL Vite prints (usually http://localhost:5173).
 
 ## Build for production
 
@@ -50,20 +46,28 @@ HTML/CSS/JS, no server required).
 ## Project structure
 
 ```
-frontend/
-  index.html
+lifeos/
+  index.html          entry HTML
   src/
-    main.jsx              React root, wraps App in AuthProvider
-    App.jsx                main shell: sidebar, tabs, dashboard layout
-    api/client.js           fetch wrapper that talks to the backend
-    context/AuthContext.jsx  login/signup/logout/session state
-    pages/AuthPage.jsx       login + signup screen
-    components/              GoalCard, AddGoalModal, Heatmap, LifeScoreDial,
-                             Calendar, JournalTab
-    utils/theme.js           brand colors, category icons, dark/light vars
-    utils/quotes.js          time-of-day quotes + personalized insight
+    main.jsx          React root
+    App.jsx           the whole app (dashboard, goals, analytics, journal, achievements)
+    index.css         Tailwind + font imports
   tailwind.config.js
   postcss.config.js
   vite.config.js
   package.json
 ```
+
+## Next steps (not included here)
+
+This ships the frontend only. To make it a real product per the original spec you'd add:
+- Node.js/Express API + MongoDB (Users, Goals, DailyLogs, FocusSessions, Journal,
+  Achievements, XPHistory, LifeScoreHistory collections)
+- JWT + bcrypt authentication, email verification
+- Persisting goals/XP/streaks/journal entries server-side instead of local React state
+- An AI coach endpoint that actually analyzes stored history
+- PDF/Excel/CSV report export
+- Push/email notifications
+
+Happy to scaffold that backend next — best done in a local dev setup (e.g. Claude Code)
+since it's a multi-file server project you'll want to run and iterate on directly.

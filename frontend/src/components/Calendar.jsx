@@ -3,10 +3,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "../api/client.js";
 import { BRAND } from "../utils/theme.js";
 
+// Local Y-M-D, deliberately not toISOString() — that converts through UTC
+// and was shifting every selected day backward by one for timezones ahead
+// of UTC (e.g. India), which is why the calendar always showed the wrong
+// (empty) day.
 function toISO(d) {
-  const copy = new Date(d);
-  copy.setHours(0, 0, 0, 0);
-  return copy.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export default function CalendarTab() {

@@ -16,8 +16,37 @@ dotenv.config();
 const app = express();
 
 // --- middleware ---
-const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",");
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+// CLIENT_ORIGIN is a comma-separated list of exact origins, e.g.
+//   https://life-track.vercel.app,https://life-track-git-main-yourteam.vercel.app
+// Entries may also be a wildcard like *.vercel.app to match any preview URL
+// on that domain (useful since Vercel gives every branch/PR its own URL).
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
+function isOriginAllowed(origin) {
+  return allowedOrigins.some((allowed) => {
+    if (allowed.startsWith("*.")) {
+      const suffix = allowed.slice(1); // ".vercel.app"
+      return origin.endsWith(suffix);
+    }
+    return origin === allowed;
+  });
+}
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // requests with no Origin header (curl, server-to-server, health checks)
+      if (!origin) return callback(null, true);
+      if (isOriginAllowed(origin)) return callback(null, true);
+      console.warn(`CORS: blocked request from origin "${origin}". Allowed: ${allowedOrigins.join(", ")}`);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "1mb" }));
 
 // --- health check ---

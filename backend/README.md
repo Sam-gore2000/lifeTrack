@@ -43,6 +43,7 @@ All routes except signup/login are protected — send `Authorization: Bearer <to
 - `POST /login` — `{ email, password }`
 - `GET /me`
 - `PATCH /me` — profile/settings fields
+- `POST /change-password` — `{ currentPassword, newPassword }`
 - `POST /forgot-password` — `{ email }`
 - `POST /reset-password` — `{ token, password }`
 

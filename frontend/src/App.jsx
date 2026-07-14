@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Home, Target, BarChart3, BookOpen, Award, CalendarDays, Sun, Moon,
-  Flame, Plus, LogOut, Sparkles,
+  Flame, Plus, LogOut, Sparkles, Settings, ArchiveRestore,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -17,6 +17,7 @@ import Heatmap from "./components/Heatmap.jsx";
 import LifeScoreDial from "./components/LifeScoreDial.jsx";
 import CalendarTab from "./components/Calendar.jsx";
 import JournalTab from "./components/JournalTab.jsx";
+import SettingsTab from "./components/SettingsTab.jsx";
 import { BRAND, DIMENSION_META, themeVars } from "./utils/theme.js";
 import { getGreeting, getTimeOfDayQuote, getPersonalizedInsight } from "./utils/quotes.js";
 
@@ -27,6 +28,7 @@ const NAV = [
   { key: "calendar", label: "Calendar", icon: CalendarDays },
   { key: "journal", label: "Journal", icon: BookOpen },
   { key: "achievements", label: "Achievements", icon: Award },
+  { key: "settings", label: "Settings", icon: Settings },
 ];
 
 function StatCard({ label, value, sub, accent }) {
@@ -64,6 +66,8 @@ function AppShell() {
   const [lifeScore, setLifeScore] = useState(null);
   const [trend, setTrend] = useState([]);
   const [achievements, setAchievements] = useState([]);
+  const [archivedGoals, setArchivedGoals] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -87,6 +91,14 @@ function AppShell() {
     setLifeScore(lifeScoreRes);
     setTrend(trendRes.history);
     setAchievements(achRes.achievements);
+
+    // catches achievements crossed in a previous session (e.g. streak grew
+    // while the app was closed)
+    api.post("/achievements/check").then(({ newlyUnlocked }) => {
+      if (newlyUnlocked?.length) {
+        api.get("/achievements").then(({ achievements }) => setAchievements(achievements));
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -101,14 +113,16 @@ function AppShell() {
     const { user: updatedUser } = await api.post(`/goals/${goalId}/status`, { status });
     updateUser(updatedUser);
 
-    const [logsRes, summaryRes, lifeScoreRes] = await Promise.all([
+    const [logsRes, summaryRes, lifeScoreRes, heatmapRes] = await Promise.all([
       api.get("/goals/logs/today"),
       api.get("/dashboard/today"),
       api.post("/dashboard/life-score/recalculate"),
+      api.get("/dashboard/heatmap?days=365"),
     ]);
     setLogsByGoal(Object.fromEntries(logsRes.logs.map((l) => [String(l.goal?._id || l.goal), l])));
     setSummary(summaryRes);
     setLifeScore(lifeScoreRes);
+    setHeatmap(heatmapRes.heatmap);
 
     api.post("/achievements/check").then(({ newlyUnlocked }) => {
       if (newlyUnlocked?.length) {
@@ -122,6 +136,34 @@ function AppShell() {
   async function handleCreateGoal(form) {
     await api.post("/goals", form);
     await loadAll();
+  }
+
+  async function handleArchiveGoal(goalId) {
+    await api.patch(`/goals/${goalId}/archive`);
+    await loadAll();
+    if (showArchived) await loadArchived();
+  }
+
+  async function handleDeleteGoal(goalId) {
+    await api.delete(`/goals/${goalId}`);
+    await loadAll();
+    if (showArchived) await loadArchived();
+  }
+
+  async function loadArchived() {
+    const { goals } = await api.get("/goals?status=archived");
+    setArchivedGoals(goals);
+  }
+
+  async function handleRestoreGoal(goalId) {
+    await api.patch(`/goals/${goalId}`, { status: "active" });
+    await Promise.all([loadAll(), loadArchived()]);
+  }
+
+  async function toggleShowArchived() {
+    const next = !showArchived;
+    setShowArchived(next);
+    if (next) await loadArchived();
   }
 
   const vars = themeVars(dark);
@@ -261,7 +303,7 @@ function AppShell() {
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-4">
                     {goals.map((g) => (
-                      <GoalCard key={g._id} goal={g} log={logsByGoal[g._id]} onSetStatus={handleSetStatus} />
+                      <GoalCard key={g._id} goal={g} log={logsByGoal[g._id]} onSetStatus={handleSetStatus} onArchive={handleArchiveGoal} onDelete={handleDeleteGoal} />
                     ))}
                   </div>
                 )}
@@ -291,19 +333,55 @@ function AppShell() {
 
         {tab === "goals" && (
           <>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <h1 className="lifeos-display text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>Goals</h1>
-              <button onClick={() => setShowModal(true)} className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl text-white" style={{ background: BRAND.blue }}>
-                <Plus size={16} /> Add goal
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleShowArchived}
+                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg"
+                  style={{ background: showArchived ? BRAND.blueSoft : "var(--track)", color: showArchived ? BRAND.blue : "var(--text-secondary)" }}
+                >
+                  <ArchiveRestore size={14} /> {showArchived ? "Hide archived" : "Show archived"}
+                </button>
+                <button onClick={() => setShowModal(true)} className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl text-white" style={{ background: BRAND.blue }}>
+                  <Plus size={16} /> Add goal
+                </button>
+              </div>
             </div>
             {goals.length === 0 ? (
               <EmptyState onAdd={() => setShowModal(true)} />
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {goals.map((g) => (
-                  <GoalCard key={g._id} goal={g} log={logsByGoal[g._id]} onSetStatus={handleSetStatus} />
+                  <GoalCard key={g._id} goal={g} log={logsByGoal[g._id]} onSetStatus={handleSetStatus} onArchive={handleArchiveGoal} onDelete={handleDeleteGoal} />
                 ))}
+              </div>
+            )}
+
+            {showArchived && (
+              <div className="mt-2">
+                <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>Archived goals</h3>
+                {archivedGoals.length === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--text-muted)" }}>No archived goals.</p>
+                ) : (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {archivedGoals.map((g) => (
+                      <div key={g._id} className="rounded-2xl p-4 flex items-center justify-between gap-3" style={{ background: "var(--surface)", border: "1px solid var(--border)", opacity: 0.75 }}>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{g.name}</p>
+                          <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{g.category}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRestoreGoal(g._id)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg shrink-0"
+                          style={{ background: BRAND.blueSoft, color: BRAND.blue }}
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -403,6 +481,13 @@ function AppShell() {
                 ))}
               </div>
             )}
+          </>
+        )}
+
+        {tab === "settings" && (
+          <>
+            <h1 className="lifeos-display text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>Settings</h1>
+            <SettingsTab />
           </>
         )}
       </main>

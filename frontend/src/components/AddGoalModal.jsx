@@ -29,9 +29,12 @@ export default function AddGoalModal({ onClose, onCreate }) {
   const [form, setForm] = useState({
     name: "", category: "Health", goalType: "quantity",
     dailyTarget: 30, unit: "min", difficulty: "medium",
+    scheduleRule: "", scheduleTime: "07:00",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const isHabit = form.goalType === "boolean";
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -42,14 +45,25 @@ export default function AddGoalModal({ onClose, onCreate }) {
       setError("Goal name is required.");
       return;
     }
-    if (!form.dailyTarget || Number(form.dailyTarget) <= 0) {
+    if (!isHabit && (!form.dailyTarget || Number(form.dailyTarget) <= 0)) {
       setError("Daily target must be greater than 0.");
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await onCreate({ ...form, dailyTarget: Number(form.dailyTarget) });
+      const payload = isHabit
+        ? {
+            name: form.name, category: form.category, goalType: form.goalType,
+            difficulty: form.difficulty,
+            scheduleRule: form.scheduleRule || null,
+            scheduleTime: form.scheduleRule ? form.scheduleTime : null,
+          }
+        : {
+            name: form.name, category: form.category, goalType: form.goalType,
+            dailyTarget: Number(form.dailyTarget), unit: form.unit, difficulty: form.difficulty,
+          };
+      await onCreate(payload);
       onClose();
     } catch (err) {
       setError(err.message);
@@ -70,7 +84,12 @@ export default function AddGoalModal({ onClose, onCreate }) {
 
         <div className="flex flex-col gap-3">
           <Field label="Goal name">
-            <input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Evening walk" style={inputStyle} />
+            <input
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              placeholder={isHabit ? "No social media before 9 AM" : "Evening walk"}
+              style={inputStyle}
+            />
           </Field>
 
           <Field label="Category">
@@ -83,20 +102,37 @@ export default function AddGoalModal({ onClose, onCreate }) {
             <select value={form.goalType} onChange={(e) => set("goalType", e.target.value)} style={inputStyle}>
               <option value="quantity">Quantity (pages, liters, km…)</option>
               <option value="time">Time (minutes)</option>
-              <option value="boolean">Yes / No (habit)</option>
+              <option value="boolean">Habit / Yes-No (wake up at 5am, no social media…)</option>
             </select>
           </Field>
 
-          <div className="flex gap-3">
-            <Field label="Daily target" className="flex-1">
-              <input type="number" min={1} value={form.dailyTarget} onChange={(e) => set("dailyTarget", e.target.value)} style={inputStyle} />
-            </Field>
-            <Field label="Unit" className="flex-1">
-              <select value={form.unit} onChange={(e) => set("unit", e.target.value)} style={inputStyle}>
-                {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </Field>
-          </div>
+          {isHabit ? (
+            <>
+              <Field label="Time constraint (optional)">
+                <select value={form.scheduleRule} onChange={(e) => set("scheduleRule", e.target.value)} style={inputStyle}>
+                  <option value="">No specific time</option>
+                  <option value="before">Must happen before a time (e.g. wake up by 5 AM)</option>
+                  <option value="after">Must not happen after a time (e.g. no screens after 9 PM)</option>
+                </select>
+              </Field>
+              {form.scheduleRule && (
+                <Field label="Time">
+                  <input type="time" value={form.scheduleTime} onChange={(e) => set("scheduleTime", e.target.value)} style={inputStyle} />
+                </Field>
+              )}
+            </>
+          ) : (
+            <div className="flex gap-3">
+              <Field label="Daily target" className="flex-1">
+                <input type="number" min={1} value={form.dailyTarget} onChange={(e) => set("dailyTarget", e.target.value)} style={inputStyle} />
+              </Field>
+              <Field label="Unit" className="flex-1">
+                <select value={form.unit} onChange={(e) => set("unit", e.target.value)} style={inputStyle}>
+                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </Field>
+            </div>
+          )}
 
           <Field label="Difficulty (sets XP reward)">
             <select value={form.difficulty} onChange={(e) => set("difficulty", e.target.value)} style={inputStyle}>

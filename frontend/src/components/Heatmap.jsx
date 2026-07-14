@@ -9,6 +9,16 @@ function heatColor(pct) {
   return "#D64545";
 }
 
+// Local Y-M-D key, deliberately NOT toISOString() — that converts through
+// UTC and rolls the date back a day for any timezone ahead of UTC (e.g.
+// India), which was causing today's completion to land on the wrong cell.
+function localKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function Heatmap({ data }) {
   const days = useMemo(() => {
     const map = new Map((data || []).map((d) => [d.date, d.pct]));
@@ -17,7 +27,7 @@ export default function Heatmap({ data }) {
     for (let i = 364; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = localKey(d);
       list.push({ date: d, key, pct: map.has(key) ? map.get(key) : null });
     }
     return list;

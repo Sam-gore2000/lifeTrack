@@ -34,6 +34,12 @@ const goalSchema = new mongoose.Schema(
     },
     reminderTime: { type: String, default: null }, // "HH:mm"
 
+    // For habit-style goals with no numeric amount ("wake up by 6am", "no
+    // social media before 9am"): an optional time constraint instead of a
+    // daily target.
+    scheduleRule: { type: String, enum: ["before", "after", null], default: null },
+    scheduleTime: { type: String, default: null }, // "HH:mm"
+
     difficulty: {
       type: String,
       enum: ["easy", "medium", "hard", "legendary"],

@@ -6,20 +6,33 @@ export async function createGoal(req, res, next) {
     const {
       name, category, description, goalType, dailyTarget, weeklyTarget,
       monthlyTarget, unit, deadline, frequency, reminderTime, difficulty,
-      color, icon,
+      color, icon, scheduleRule, scheduleTime,
     } = req.body;
 
-    if (!name || !category || !goalType || dailyTarget === undefined) {
-      return res.status(400).json({ message: "name, category, goalType and dailyTarget are required." });
+    if (!name || !category || !goalType) {
+      return res.status(400).json({ message: "name, category and goalType are required." });
+    }
+
+    // Habit-style ("boolean") goals don't need a numeric daily amount —
+    // default them to a single daily check.
+    const isHabit = goalType === "boolean";
+    const resolvedTarget = isHabit ? (dailyTarget || 1) : dailyTarget;
+    const resolvedUnit = isHabit ? (unit || "habit") : unit;
+
+    if (!isHabit && (resolvedTarget === undefined || resolvedTarget === null)) {
+      return res.status(400).json({ message: "dailyTarget is required for time/quantity goals." });
     }
 
     const goal = await Goal.create({
       user: req.user._id,
-      name, category, description, goalType, dailyTarget, weeklyTarget,
-      monthlyTarget, unit, deadline, frequency, reminderTime,
+      name, category, description, goalType,
+      dailyTarget: resolvedTarget, weeklyTarget, monthlyTarget, unit: resolvedUnit,
+      deadline, frequency, reminderTime,
       difficulty: difficulty || "medium",
       xpReward: DIFFICULTY_XP[difficulty] || DIFFICULTY_XP.medium,
       color, icon,
+      scheduleRule: isHabit ? (scheduleRule || null) : null,
+      scheduleTime: isHabit && scheduleRule ? (scheduleTime || null) : null,
     });
 
     res.status(201).json({ goal });

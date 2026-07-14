@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const RAW_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const BASE_URL = RAW_BASE_URL.replace(/\/+$/, ""); // strip any trailing slash(es)
 const TOKEN_KEY = "lifeos_token";
 
 export function getToken() {
