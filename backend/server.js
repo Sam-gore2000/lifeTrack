@@ -9,6 +9,7 @@ import journalRoutes from "./routes/journalRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import achievementRoutes from "./routes/achievementRoutes.js";
 import focusSessionRoutes from "./routes/focusSessionRoutes.js";
+import challengeRoutes from "./routes/challengeRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 dotenv.config();
@@ -59,6 +60,7 @@ app.use("/api/journal", journalRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/achievements", achievementRoutes);
 app.use("/api/focus-sessions", focusSessionRoutes);
+app.use("/api/challenges", challengeRoutes);
 
 // --- errors ---
 app.use(notFound);

@@ -72,6 +72,24 @@ All routes except signup/login are protected — send `Authorization: Bearer <to
   from the trailing 7-day completion rate per category
 - `GET /life-score/trend?days=14`
 
+### Challenges — `/api/challenges`
+A 30-day commitment to a single daily habit — created once, then just checked
+off each day (no need to re-add it). Kept intentionally separate from Goals,
+which are for things that change day to day.
+- `POST /` — `{ name, category, description?, difficulty?, durationDays? }` (defaults to 30 days, starting today)
+- `GET /?status=active|completed|abandoned|all`
+- `GET /:id`
+- `POST /:id/log` — `{ status: "done"|"pending", date? }` — marks a day, awards/reverses daily XP
+- `PATCH /:id/abandon`
+- `DELETE /:id`
+
+Note: challenge completions award XP and level progress the same way goals
+do, but do **not** currently feed into the Goals-based consistency heatmap,
+streak, or life score — those stay driven by the Goals tab only. If you want
+challenges to count toward the same heatmap/life-score, that's a natural
+next step (would mean writing a `DailyLog`-equivalent entry per challenge
+completion, or merging both sources when computing the heatmap).
+
 ### Journal — `/api/journal`
 - `POST /` — `{ wentWell, distractions, grateful, improveTomorrow, mood, date? }`
 - `GET /?from=&to=&limit=`

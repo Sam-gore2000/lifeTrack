@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Home, Target, BarChart3, BookOpen, Award, CalendarDays, Sun, Moon,
-  Flame, Plus, LogOut, Sparkles, Settings, ArchiveRestore,
+  Flame, Plus, LogOut, Sparkles, Settings, ArchiveRestore, Rocket,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -13,6 +13,8 @@ import { api } from "./api/client.js";
 import AuthPage from "./pages/AuthPage.jsx";
 import GoalCard from "./components/GoalCard.jsx";
 import AddGoalModal from "./components/AddGoalModal.jsx";
+import ChallengeCard from "./components/ChallengeCard.jsx";
+import AddChallengeModal from "./components/AddChallengeModal.jsx";
 import Heatmap from "./components/Heatmap.jsx";
 import LifeScoreDial from "./components/LifeScoreDial.jsx";
 import CalendarTab from "./components/Calendar.jsx";
@@ -24,6 +26,7 @@ import { getGreeting, getTimeOfDayQuote, getPersonalizedInsight } from "./utils/
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: Home },
   { key: "goals", label: "Goals", icon: Target },
+  { key: "challenges", label: "Challenges", icon: Rocket },
   { key: "analytics", label: "Analytics", icon: BarChart3 },
   { key: "calendar", label: "Calendar", icon: CalendarDays },
   { key: "journal", label: "Journal", icon: BookOpen },
@@ -60,6 +63,8 @@ function AppShell() {
   const [tab, setTab] = useState("dashboard");
 
   const [goals, setGoals] = useState([]);
+  const [challenges, setChallenges] = useState([]);
+  const [showAddChallenge, setShowAddChallenge] = useState(false);
   const [logsByGoal, setLogsByGoal] = useState({});
   const [summary, setSummary] = useState(null);
   const [heatmap, setHeatmap] = useState([]);
@@ -75,7 +80,7 @@ function AppShell() {
   const [toast, setToast] = useState(null);
 
   const loadAll = useCallback(async () => {
-    const [goalsRes, logsRes, summaryRes, heatmapRes, lifeScoreRes, trendRes, achRes] = await Promise.all([
+    const [goalsRes, logsRes, summaryRes, heatmapRes, lifeScoreRes, trendRes, achRes, challengesRes] = await Promise.all([
       api.get("/goals?status=active"),
       api.get("/goals/logs/today"),
       api.get("/dashboard/today"),
@@ -83,6 +88,7 @@ function AppShell() {
       api.get("/dashboard/life-score/today"),
       api.get("/dashboard/life-score/trend?days=14"),
       api.get("/achievements"),
+      api.get("/challenges?status=all"),
     ]);
     setGoals(goalsRes.goals);
     setLogsByGoal(Object.fromEntries(logsRes.logs.map((l) => [String(l.goal?._id || l.goal), l])));
@@ -91,6 +97,7 @@ function AppShell() {
     setLifeScore(lifeScoreRes);
     setTrend(trendRes.history);
     setAchievements(achRes.achievements);
+    setChallenges(challengesRes.challenges);
 
     // catches achievements crossed in a previous session (e.g. streak grew
     // while the app was closed)
@@ -136,6 +143,33 @@ function AppShell() {
   async function handleCreateGoal(form) {
     await api.post("/goals", form);
     await loadAll();
+  }
+
+  async function handleCreateChallenge(form) {
+    await api.post("/challenges", form);
+    const { challenges } = await api.get("/challenges?status=all");
+    setChallenges(challenges);
+  }
+
+  async function handleSetChallengeStatus(challengeId, status) {
+    const { user: updatedUser } = await api.post(`/challenges/${challengeId}/log`, { status });
+    updateUser(updatedUser);
+    const { challenges } = await api.get("/challenges?status=all");
+    setChallenges(challenges);
+
+    api.post("/achievements/check").then(({ newlyUnlocked }) => {
+      if (newlyUnlocked?.length) {
+        setToast(`Achievement unlocked: ${newlyUnlocked[0].name}`);
+        setTimeout(() => setToast(null), 3000);
+        api.get("/achievements").then(({ achievements }) => setAchievements(achievements));
+      }
+    });
+  }
+
+  async function handleRemoveChallenge(challengeId) {
+    await api.delete(`/challenges/${challengeId}`);
+    const { challenges } = await api.get("/challenges?status=all");
+    setChallenges(challenges);
   }
 
   async function handleArchiveGoal(goalId) {
@@ -387,6 +421,52 @@ function AppShell() {
           </>
         )}
 
+        {tab === "challenges" && (
+          <>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h1 className="lifeos-display text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>Challenges</h1>
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Commit once, then just check in daily — no need to re-add anything.
+                </p>
+              </div>
+              <button onClick={() => setShowAddChallenge(true)} className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-xl text-white" style={{ background: BRAND.blue }}>
+                <Plus size={16} /> Start a challenge
+              </button>
+            </div>
+
+            {challenges.filter((c) => c.status === "active").length === 0 && challenges.filter((c) => c.status !== "active").length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                  No challenges yet. Start one for a habit you want to run every single day for 30 days.
+                </p>
+                <button onClick={() => setShowAddChallenge(true)} className="text-sm font-medium px-4 py-2 rounded-xl text-white" style={{ background: BRAND.blue }}>
+                  Start your first challenge
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {challenges.filter((c) => c.status === "active").map((c) => (
+                    <ChallengeCard key={c._id} challenge={c} onSetStatus={handleSetChallengeStatus} onRemove={handleRemoveChallenge} />
+                  ))}
+                </div>
+
+                {challenges.filter((c) => c.status !== "active").length > 0 && (
+                  <div className="mt-2">
+                    <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>Past challenges</h3>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {challenges.filter((c) => c.status !== "active").map((c) => (
+                        <ChallengeCard key={c._id} challenge={c} onSetStatus={handleSetChallengeStatus} onRemove={handleRemoveChallenge} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+
         {tab === "analytics" && (
           <>
             <h1 className="lifeos-display text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>Analytics</h1>
@@ -493,6 +573,7 @@ function AppShell() {
       </main>
 
       {showModal && <AddGoalModal onClose={() => setShowModal(false)} onCreate={handleCreateGoal} />}
+      {showAddChallenge && <AddChallengeModal onClose={() => setShowAddChallenge(false)} onCreate={handleCreateChallenge} />}
 
       {toast && (
         <div className="fixed bottom-6 right-6 px-4 py-3 rounded-xl shadow-lg text-sm font-medium z-50" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
