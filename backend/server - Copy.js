@@ -16,6 +16,7 @@ dotenv.config();
 const app = express();
 
 // --- middleware ---
+<<<<<<< HEAD
 // CLIENT_ORIGIN is a comma-separated list of exact origins, e.g.
 //   https://life-track.vercel.app,https://life-track-git-main-yourteam.vercel.app
 // Entries may also be a wildcard like *.vercel.app to match any preview URL
@@ -47,6 +48,27 @@ app.use(
     credentials: true,
   })
 );
+=======
+const allowedOrigins = (
+  process.env.CLIENT_ORIGIN || "http://localhost:5173"
+).split(",");
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests without an Origin header (e.g. Postman, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+>>>>>>> cc98113d8698f7cbaba645ecf3484f5f7db9d17b
 app.use(express.json({ limit: "1mb" }));
 
 // --- health check ---
